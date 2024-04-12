@@ -1,17 +1,18 @@
 package db;
 
 import java.sql.Timestamp;
+import java.text.SimpleDateFormat;
 
 public class History {
     private int id;
     private Timestamp time;
-    private int senderId;
+    private String sender;
     private String content;
 
-    public History(int id, Timestamp time, int senderId, String content) {
+    public History(int id, Timestamp time, String sender, String content) {
         this.id = id;
         this.time = time;
-        this.senderId = senderId;
+        this.sender = sender;
         this.content = content;
     }
 
@@ -30,12 +31,12 @@ public class History {
         this.time = time;
     }
 
-    public int getSenderId() {
-        return senderId;
+    public String getSender() {
+        return sender;
     }
 
-    public void setSenderId(int senderId) {
-        this.senderId = senderId;
+    public void setSender(String senderId) {
+        this.sender = senderId;
     }
 
     public String getContent() {
@@ -44,5 +45,11 @@ public class History {
 
     public void setContent(String content) {
         this.content = content;
+    }
+
+    @Override
+    public String toString() {
+        SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd kk:mm");
+        return "[" + formatter.format(time) +"] " + sender + ": " + content;
     }
 }

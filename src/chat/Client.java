@@ -6,8 +6,10 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.*;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Base64;
 import java.util.Properties;
 import java.util.Scanner;
 
@@ -112,7 +114,13 @@ public class Client {
 			//Todo 登录验证， 使用sendLogin(String username, String password)
 			System.out.println("login: " + sendLogin("zzy", "123456"));  // 测试登录
 //             pw.println(nickName);
-             
+
+			//获取历史消息记录
+			String encodedHistory = br.readLine().trim();
+			System.out.println(encodedHistory);
+			String decode = new String(Base64.getDecoder().decode(encodedHistory), StandardCharsets.UTF_8);
+			System.out.println(decode);
+			showMessage.append(decode);
 
             
         } catch (Exception e) {
@@ -198,7 +206,7 @@ public class Client {
 	            //发送消息
 	            
 	            if(messageString.isEmpty()||messageString.trim().equals("")){
-	                JOptionPane.showMessageDialog(frame, "Chat history cannot be empty.");
+	                JOptionPane.showMessageDialog(frame, "Chat content cannot be empty.");
 	            }else{
 	                messageString.trim();
 	                pw.println(messageString);

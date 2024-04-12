@@ -1,6 +1,7 @@
 package chat;
 
 import db.DBOperator;
+import db.History;
 import db.User;
 import org.jcp.xml.dsig.internal.dom.Utils;
 
@@ -15,9 +16,10 @@ import java.io.PrintWriter;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Properties;
+import java.nio.charset.StandardCharsets;
+import java.sql.Timestamp;
+import java.text.SimpleDateFormat;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -253,17 +255,27 @@ public class Server {
 				}
 				pw.println("SUCCEEDED");
 
+
 				//将该客户端的输出流放入共享集合中
 				addOut(pw);
 
-				nickName = br.readLine();
-				
-				/*
-				 * 广播，该用户上线了
-				 */
+
+				//获取历史消息记录
+				List<History> histories = db.getRecentHistory();
+				//全部编码为一条base64
+				StringBuilder stringBuilder = new StringBuilder();
+				for (History history : histories) {
+					stringBuilder.append(history).append("\n");
+				}
+				String s = stringBuilder.toString();
+				String encoded = Base64.getEncoder().encodeToString(s.getBytes(StandardCharsets.UTF_8));
+				//发送给客户端
+				pw.println(encoded);
+
+
+				//广播，该用户上线了
 				sendMessageToAllClient("["+nickName+"] is online.");
-				
-				
+				System.out.println("["+nickName+"] is online.");
 				//读取客户端发送过来的一行字符串
 				/*
 				 * 使用BufferedReader的readLine方法读取客户端发送
@@ -278,9 +290,12 @@ public class Server {
 				 * readLine方法会返回null。
 				 */
 				String message = null;
+				SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd kk:mm");
 				while((message = br.readLine())!=null){
+					// 记录消息到数据库
+					db.insertHistory(nickName, message);
 					//将读取到的内容转发给所有客户端
-					sendMessageToAllClient(nickName+"says:"+message);
+					sendMessageToAllClient("[" + formatter.format(new Timestamp(new Date().getTime())) + "] " + nickName + ": " + message);
 				}				
 			
 			} catch (Exception e) {
@@ -295,7 +310,7 @@ public class Server {
 				
 				//广播，通知所有客户端该用户下线了
 				sendMessageToAllClient("["+nickName+"] is offline.");
-				
+				System.out.println("["+nickName+"] is offline.");
 				/*
 				 * 将该客户端的socket关闭。
 				 * 关闭socket同时也就将使用它获取的输入流与

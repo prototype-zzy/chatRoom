@@ -4,6 +4,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.sql.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Properties;
 
 public class DBOperator {
@@ -27,7 +30,7 @@ public class DBOperator {
             Class.forName(JDBC_DRIVER);
 
             // 打开链接
-            System.out.println("连接数据库...");
+            System.out.println("Connecting database...");
             conn = DriverManager.getConnection(DB_URL, USER, PASS);
             stmt = conn.createStatement();
 //            // 执行查询
@@ -87,5 +90,41 @@ public class DBOperator {
         }
         return user;
 
+    }
+
+    public List<History> getRecentHistory() {
+        return getHistory(0, 30);
+    }
+
+    public List<History> getHistory(int pageNum, int pageSize){
+        String sql = String.format("SELECT * FROM history ORDER BY time DESC LIMIT %d, %d;", (pageNum) * pageSize, pageSize);
+        System.out.println("query for history");
+        List<History> histories = new ArrayList<>(pageSize);
+        try {
+            ResultSet rs = stmt.executeQuery(sql);
+            while (rs.next()) {
+                int id = rs.getInt("id");
+                Timestamp time = rs.getTimestamp("time");
+                String sender = rs.getString("sender");
+                String content = rs.getString("content");
+                histories.add(new History(id, time, sender, content));
+            }
+            rs.close();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        Collections.reverse(histories);
+        return histories;
+    }
+
+    public int insertHistory(String sender, String content) {
+        String sql = String.format("INSERT INTO history (sender, content) VALUES ('%s', '%s')", sender, content);
+        System.out.println("insert history");
+        try {
+            return stmt.executeUpdate(sql);
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return 0;
     }
 }
