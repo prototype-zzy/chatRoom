@@ -4,13 +4,11 @@ import java.awt.EventQueue;
 import java.awt.Window;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.io.BufferedReader;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.io.OutputStreamWriter;
-import java.io.PrintWriter;
+import java.io.*;
 import java.net.Socket;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.Properties;
 import java.util.Scanner;
 
 import javax.swing.JButton;
@@ -37,16 +35,18 @@ public class Client {
 	private OutputStream out;
 	private OutputStreamWriter osw;
 	private PrintWriter pw;
-	
+	private BufferedReader br;
+
 	/**
 	 *     构造函数，初始化
 	 */
 	public Client(){
 		try {
-			/*
-			 *  initialize（）
-			 */
-			socket = new Socket("127.0.0.1",8888);
+			Properties properties = new Properties();
+			properties.load(Files.newInputStream(Paths.get("config.properties")));
+			String host = properties.getProperty("serverip");
+			int port = Integer.parseInt(properties.getProperty("serverport"));
+			socket = new Socket(host, port);
 			
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -90,29 +90,28 @@ public class Client {
         initialize();
         //将nickName发送给服务器用于广播上线
         try {
+
+			/*
+			 * 通过socket获取输入流，循环读取服务器端发送过来的每一行字符串，并输出到控制台即可
+			 */
+			InputStream in = socket.getInputStream();
+			InputStreamReader isr = new InputStreamReader(in,"UTF-8");
+			br = new BufferedReader(isr);
+
             /*
-             *  OutputStream getOutputStream()
              *  Socket的方法用于获取一个输出流，将数据发送给远端计算机
              */
-          
              out = socket.getOutputStream();
-             
-             /*
-              * 使用字符流包装后，我们就可以按照给定的字符集向远程计算机发送字符了
-              * */
-             osw    =  new OutputStreamWriter(out,"UTF-8");
-             
-             /*
-              * 使用缓冲字符输出流包装后，就可以以行为单位写出字符串了
-              * */
-             
+             osw = new OutputStreamWriter(out,"UTF-8");
              pw = new PrintWriter(osw,true);
-             
+
              /*
               * 首先使用pw发送一个字符串，这个字符串是昵称
               * */
-             
-             pw.println(nickName);
+
+			//Todo 登录验证， 使用sendLogin(String username, String password)
+			System.out.println("login: " + sendLogin("zzy", "123456"));  // 测试登录
+//             pw.println(nickName);
              
 
             
@@ -128,22 +127,21 @@ public class Client {
         t.start();
         
     }
+
+
+	private boolean sendLogin(String username, String password) throws IOException {
+		pw.println(username);
+		pw.println(password);
+		return br.readLine().trim().equals("SUCCEEDED");
+
+	}
 	
     /*
      * 该线程负责读取服务端发送过来的消息
-     * @author minchao
      * */
 	class GetServerMessageHandler implements Runnable{
 		public void run(){
 			try {
-				/*
-				 * 通过socket获取输入流，循环读取服务器端发送过来的每一行字符串，并输出到控制台即可
-				 */
-				InputStream in = socket.getInputStream();
-				InputStreamReader isr
-					= new InputStreamReader(in,"UTF-8");
-				BufferedReader br
-					= new BufferedReader(isr);
 				
 				String message = null;
 				while((message = br.readLine())!=null){

@@ -1,5 +1,9 @@
 package chat;
 
+import db.DBOperator;
+import db.User;
+import org.jcp.xml.dsig.internal.dom.Utils;
+
 import java.io.BufferedReader;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -16,6 +20,7 @@ import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+
 
 /**
  * 聊天室服务端
@@ -38,6 +43,8 @@ public class Server {
 	 * 存放所有客户端输出流的共享集合
 	 */
 	private List<PrintWriter> allOut;
+
+	private DBOperator db;
 	
 	/**
 	 * 构造方法，用来初始化服务端
@@ -65,17 +72,10 @@ public class Server {
 			 * 这样Properties就可以通过FileInputStream读取
 			 * 我们的配置文件了。
 			 */
-			FileInputStream fis 
-				= new FileInputStream("config.properties");
+			FileInputStream fis = new FileInputStream("config.properties");
 			properties.load(fis);
 			
 			//获取服务端端口号
-			/*
-			 * String getProperty(String key)
-			 * 给定配置文件中等号左面的内容，可以获取对应的
-			 * 值
-			 * serverport=8088
-			 */
 			String port = properties.getProperty("serverport");
 			System.out.println("Server port:"+port);
 			/*
@@ -88,14 +88,18 @@ public class Server {
 			/*
 			 *  获取线程的数量
 			 */
-			String threadCount 
-							= properties.getProperty("threadcount");
+			String threadCount = properties.getProperty("threadcount");
 			System.out.println("Number of thread pool:"+threadCount);
 			
 			/*
 			 * 初始化线程池
 			 */
 			threadPool = Executors.newFixedThreadPool(Integer.parseInt(threadCount));
+
+			/*
+			 * 连接数据库
+			 */
+			db = new DBOperator();
 			
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -149,11 +153,9 @@ public class Server {
 				 * 启动一个线程，并将刚刚连接的客户端的Socket
 				 * 传给它，让它去处理与这个客户端的交互。
 				 */
-				ClientHandler clientHandler
-									= new ClientHandler(socket);
-//				Thread t = new Thread(clientHandler);
-//				t.start();
+				ClientHandler clientHandler = new ClientHandler(socket);
 				threadPool.execute(clientHandler);
+
 			}
 			
 		} catch (Exception e) {
@@ -181,7 +183,10 @@ public class Server {
 		 * 该客户端的昵称
 		 */
 		private String nickName;
-		
+		private BufferedReader br;
+		private PrintWriter pw;
+		public boolean authorized = false;
+
 		public ClientHandler(Socket socket){
 			this.socket = socket;
 			/*
@@ -190,42 +195,67 @@ public class Server {
 			InetAddress address = socket.getInetAddress();
 			//获取远程计算机的地址
 			String add = address.getHostAddress();
-			System.out.println(add+"is online.");
+			System.out.println(add+" connect.");
 			
+		}
+
+		// 验证登录
+		private boolean verification(){
+			try {
+				String name = br.readLine().trim();
+				String pass = br.readLine().trim();
+				nickName = name;
+				User user = db.getUserByName(name);
+				// 未搜索到用户
+				if (user.equals(null)) {
+					return false;
+				}
+				// 对比加密密码
+				if (MyUtils.encrypt(pass).equals(user.getPassword())){
+					return true;
+				}
+			} catch (IOException e) {
+				throw new RuntimeException(e);
+			} catch (Exception ex) {
+				ex.printStackTrace();
+			}
+			return false;
 		}
 		
 		public void run() {
-			PrintWriter pw = null;
 			try {
 				/*
 				 * 通过Socket获取输出流，用于将消息发送给
 				 * 客户端
 				 */
 				OutputStream out = socket.getOutputStream();
-				OutputStreamWriter osw
-							= new OutputStreamWriter(out,"UTF-8");
+				OutputStreamWriter osw = new OutputStreamWriter(out,"UTF-8");
 				pw = new PrintWriter(osw,true);
-				
-				//将该客户端的输出流放入共享集合中
-				addOut(pw);
-				
-				
-				
+
 				/*
 				 * InputStream getInputStream()
 				 * Socket的该方法用来获取远程计算机发送过来的数据
 				 */
 				InputStream in = socket.getInputStream();
-				
-				InputStreamReader isr
-							= new InputStreamReader(in,"UTF-8");
-				
-				BufferedReader br = new BufferedReader(isr);
+				InputStreamReader isr = new InputStreamReader(in,"UTF-8");
+				br = new BufferedReader(isr);
 				/*
 				 * 首先读取一行字符串，因为客户端发送过来的第一
 				 * 行字符串是该客户端的昵称，读取到后将其设置到
 				 * 属性nickName上
 				 */
+
+				/*
+				 * 登录验证
+				 */
+				while (!verification()){
+					pw.println("FAILED");
+				}
+				pw.println("SUCCEEDED");
+
+				//将该客户端的输出流放入共享集合中
+				addOut(pw);
+
 				nickName = br.readLine();
 				
 				/*
