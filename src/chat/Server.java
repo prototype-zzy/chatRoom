@@ -3,7 +3,7 @@ package chat;
 import db.DBOperator;
 import db.History;
 import db.User;
-import org.jcp.xml.dsig.internal.dom.Utils;
+//import org.jcp.xml.dsig.internal.dom.Utils;
 
 import java.io.BufferedReader;
 import java.io.FileInputStream;
@@ -22,6 +22,8 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+
+import com.mysql.*;
 
 
 /**

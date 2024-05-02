@@ -1,10 +1,13 @@
 package chat;
 
 import java.awt.EventQueue;
+import java.awt.FlowLayout;
+import java.awt.GridLayout;
 import java.awt.Window;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.*;
+import java.net.PasswordAuthentication;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -13,11 +16,21 @@ import java.util.Base64;
 import java.util.Properties;
 import java.util.Scanner;
 
+import javax.management.loading.PrivateClassLoader;
 import javax.swing.JButton;
+import javax.swing.JDialog;
 import javax.swing.JFrame;
+import javax.swing.JLabel;
 import javax.swing.JOptionPane;
+import javax.swing.JPasswordField;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
+import javax.swing.JTextField;
+import javax.swing.*;
+
+import com.mysql.cj.xdevapi.AddResult;
+
+import db.DBOperator;
 
 //import org.omg.CORBA.INITIALIZE;
 
@@ -34,11 +47,20 @@ public class Client {
 	private JScrollPane sp;
 	private JButton btnNewButton;
 	private String nickName;
+	private String passWord;
 	private OutputStream out;
 	private OutputStreamWriter osw;
 	private PrintWriter pw;
 	private BufferedReader br;
-
+	private DBOperator db;
+	
+	private JFrame mainFrame;
+    private JTextField usernameField;
+    private JPasswordField passwordField;
+    private JButton loginButton;
+    private JButton registerButton;
+    private String logOrReg;
+    
 	/**
 	 *     构造函数，初始化
 	 */
@@ -49,6 +71,8 @@ public class Client {
 			String host = properties.getProperty("serverip");
 			int port = Integer.parseInt(properties.getProperty("serverport"));
 			socket = new Socket(host, port);
+			
+			db = new DBOperator();
 			
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -65,7 +89,7 @@ public class Client {
 	                try{
 	                    Client window = new Client();
 	                    window.start();
-	                    window.frame.setTitle(window.nickName+" chatroom.");
+	                    window.frame.setTitle(window.nickName+"'s chatroom.");
 	                    window.frame.setVisible(true);
 	                    
 	                }catch(Exception e){
@@ -81,14 +105,29 @@ public class Client {
      * start方法
      */
     public void start(){
+    	
+    	// 获取Id
+    	int userId = 0;
+//        
+//        nickName = JOptionPane.showInputDialog("Please enter a nickname for this chat.");
+//        nickName.trim();
+//        // TODO: 检查用户名
+//        while (nickName.length() == 0 || nickName.trim().equals("Please enter the nickname for this chat:")) {
+//            JOptionPane.showMessageDialog(frame, "Please enter at least one character.");
+//            nickName = JOptionPane.showInputDialog("Please enter a nickname for this chat.");
+//            
+//        }
+//        
+//        // TODO: 检查密码
+//        passWord = JOptionPane.showInputDialog("Please enter the password of the user.");
+//        while (passWord.length() < 6 || passWord.trim().equals("Please enter the password of the user:")) {
+//            JOptionPane.showMessageDialog(frame, "Please enter at least 6 characters.");
+//            passWord = JOptionPane.showInputDialog("Please enter the password of the user.");
+//            
+//        }
+    	
+    	loginOrRegister();
         
-        nickName = JOptionPane.showInputDialog("");
-        nickName.trim();
-        while (nickName.length() == 0 ||nickName.trim().equals("Please enter the nickname for this chat:")) {
-            JOptionPane.showMessageDialog(frame, "Please enter at least one character.");
-            nickName = JOptionPane.showInputDialog("Please enter a nickname for this chat.");
-            
-        }
         initialize();
         //将nickName发送给服务器用于广播上线
         try {
@@ -112,7 +151,8 @@ public class Client {
               * */
 
 			//Todo 登录验证， 使用sendLogin(String username, String password)
-			System.out.println("login: " + sendLogin("zzy", "123456"));  // 测试登录
+//			System.out.println("login: " + sendLogin("zzy", "123456"));  // 测试登录
+			System.out.println("login: " + sendLogin(logOrReg, nickName, passWord));
 //             pw.println(nickName);
 
 			//获取历史消息记录
@@ -137,7 +177,8 @@ public class Client {
     }
 
 
-	private boolean sendLogin(String username, String password) throws IOException {
+	private boolean sendLogin(String logOrReg, String username, String password) throws IOException {
+		pw.println(logOrReg);
 		pw.println(username);
 		pw.println(password);
 		return br.readLine().trim().equals("SUCCEEDED");
@@ -162,6 +203,75 @@ public class Client {
 				e.printStackTrace();
 			}
 		}
+	}
+	
+	/**
+	 * 登录或注册
+	 */
+	private void loginOrRegister() {
+//		mainFrame = new JFrame("Main Application");
+//        mainFrame.setSize(400, 300);
+//        mainFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+//        mainFrame.setLayout(new FlowLayout());
+//        mainFrame.setLocationRelativeTo(null);
+//
+//        // 添加登录或注册按钮
+//        JButton loginOrRegisterButton = new JButton("Login or Register");
+//        loginOrRegisterButton.addActionListener(e -> loginOrRegister());
+//        mainFrame.add(loginOrRegisterButton);
+//
+//        mainFrame.setVisible(true);
+		
+		
+		JDialog loginDialog = new JDialog(mainFrame, "Login", true);
+	    loginDialog.setLayout(new GridLayout(3, 2, 5, 5));
+	    loginDialog.setSize(300, 150);
+	    loginDialog.setLocationRelativeTo(mainFrame);
+
+	    loginDialog.add(new JLabel("    Username:"));
+	    usernameField = new JTextField();
+	    loginDialog.add(usernameField);
+//	    loginDialog.add(new JLabel(""));
+
+	    loginDialog.add(new JLabel("    Password:"));
+	    passwordField = new JPasswordField();
+	    loginDialog.add(passwordField);
+
+//	    loginDialog.add(new JLabel(""));
+	    registerButton = new JButton("Register");
+	    registerButton.addActionListener(new ActionListener() {
+	        @Override
+	        public void actionPerformed(ActionEvent e) {
+	            String username = usernameField.getText();
+	            String password = new String(passwordField.getPassword());
+//	            JOptionPane.showMessageDialog(loginDialog, "Username: " + username + "\nPassword: " + password);
+	            loginDialog.dispose();
+	            
+	            logOrReg = "REGISTER";
+	            nickName = username;
+	            passWord = password;
+	        }
+	    });
+	    loginDialog.add(registerButton);
+	    
+	    loginButton = new JButton("Login");
+//	    loginDialog.add(new JLabel(""));
+	    loginButton.addActionListener(new ActionListener() {
+	        @Override
+	        public void actionPerformed(ActionEvent e) {
+	            String username = usernameField.getText();
+	            String password = new String(passwordField.getPassword());
+//	            JOptionPane.showMessageDialog(loginDialog, "Username: " + username + "\nPassword: " + password);
+	            loginDialog.dispose();
+	            
+	            logOrReg = "LOGIN";
+	            nickName = username;
+	            passWord = password;
+	        }
+	    });
+	    loginDialog.add(loginButton);
+
+	    loginDialog.setVisible(true);
 	}
 	
 	/*
